@@ -1,0 +1,77 @@
+datasource db {
+  provider = "postgresql"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// --------------------------------------
+// Usuários e Autenticação
+// --------------------------------------
+
+model User {
+  id               String        @id @default(uuid())
+  name             String?
+  email            String        @unique
+  stripeCustomerId String?
+
+  // Relação 1 para N com MetaAccount (um usuário pode ter várias contas Meta)
+  metaAccounts     MetaAccount[]
+
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+}
+
+// --------------------------------------
+// Contas do Meta Ads Conectadas (OAuth)
+// --------------------------------------
+
+model MetaAccount {
+  id              String        @id @default(cuid())
+  userId          String
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  facebookUserId  String        // ID do usuário no Facebook
+  actAccountId    String        // ID da conta de anúncios (ex: act_12345678)
+  accountName     String?       // Nome da conta de anúncios
+  accessToken     String        @db.Text // Token de acesso do Meta Ads
+  tokenExpiresAt  DateTime?     // Data de expiração do token
+
+  syncFrequency   String        @default("DAILY") // FREQUÊNCIA: DAILY, TWICE_DAILY, etc.
+  isActive        Boolean       @default(true)
+
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  dailyMetrics    DailyMetric[]
+
+  @@unique([userId, actAccountId])
+}
+
+// --------------------------------------
+// Métricas Diárias da Conta de Anúncios
+// --------------------------------------
+
+model DailyMetric {
+  id            String      @id @default(cuid())
+  metaAccountId String
+  metaAccount   MetaAccount @relation(fields: [metaAccountId], references: [id], onDelete: Cascade)
+
+  date          DateTime    @db.Date // Data referente à métrica
+
+  spend         Float       @default(0.0)  // Gasto
+  impressions   Int         @default(0)    // Impressões
+  clicks        Int         @default(0)    // Cliques
+  ctr           Float       @default(0.0)  // CTR (%)
+  cpc           Float       @default(0.0)  // CPC
+  cpm           Float       @default(0.0)  // CPM
+  reach         Int         @default(0)    // Alcance
+  conversions   Int         @default(0)    // Conversões
+  roas          Float       @default(0.0)  // ROAS
+
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@unique([metaAccountId, date])
+}
