@@ -1,10 +1,9 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { 
   Download, 
-  RefreshCw, 
   AlertCircle,
   LogOut,
   Settings2
@@ -22,7 +21,8 @@ interface Metrics {
   roas: string;
 }
 
-export default function DashboardPage() {
+// 1. Componente com a lógica do Dashboard contendo o useSearchParams
+function DashboardContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const isConnected = searchParams.get('meta') === 'connected';
@@ -226,5 +226,18 @@ function StatCard({ title, value }: { title: string; value: string }) {
         {value}
       </div>
     </div>
+  );
+}
+
+// 2. Exportação com Suspense Boundary para resolver o erro da Vercel
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[#FAFAFA] flex items-center justify-center font-sans text-sm text-neutral-500">
+        Carregando painel...
+      </div>
+    }>
+      <DashboardContent />
+    </Suspense>
   );
 }
