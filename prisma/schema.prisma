@@ -11,16 +11,17 @@ generator client {
 // --------------------------------------
 
 model User {
-  id               String        @id @default(uuid())
-  name             String?
-  email            String        @unique
-  stripeCustomerId String?
+  id                       String        @id @default(uuid())
+  name                     String?
+  email                    String        @unique
+  stripeCustomerId         String?
+  stripeSubscriptionStatus String?       // <--- ADICIONADO AQUI
 
   // Relação 1 para N com MetaAccount (um usuário pode ter várias contas Meta)
-  metaAccounts     MetaAccount[]
+  metaAccounts             MetaAccount[]
 
-  createdAt        DateTime      @default(now())
-  updatedAt        DateTime      @updatedAt
+  createdAt                DateTime      @default(now())
+  updatedAt                DateTime      @updatedAt
 }
 
 // --------------------------------------
