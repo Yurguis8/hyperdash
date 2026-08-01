@@ -7,7 +7,14 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
 
 export async function POST(request: Request) {
   try {
-    const { email, name } = await request.json();
+    const { email, name, userId } = await request.json();
+
+    if (!email || !userId) {
+      return NextResponse.json(
+        { error: 'E-mail e identificador do usuário são obrigatórios.' },
+        { status: 400 }
+      );
+    }
 
     // 1. Cria a sessão do Stripe Checkout
     const session = await stripe.checkout.sessions.create({
@@ -30,7 +37,11 @@ export async function POST(request: Request) {
       ],
       mode: 'subscription',
       customer_email: email,
-      success_url: `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/dashboard?payment=success`,
+      metadata: {
+        userId,
+        name: name || '',
+      },
+      success_url: `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/login?payment=success`,
       cancel_url: `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/register?canceled=true`,
     });
 

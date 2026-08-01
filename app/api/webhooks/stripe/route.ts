@@ -29,7 +29,6 @@ export async function POST(request: Request) {
     const userId = session.metadata?.userId;
 
     if (userId) {
-      // Atualiza o status da assinatura do usuário no Supabase
       await prisma.user.update({
         where: { id: userId },
         data: {
@@ -37,6 +36,11 @@ export async function POST(request: Request) {
           stripeCustomerId: session.customer as string,
         },
       });
+    } else {
+      console.warn(
+        'checkout.session.completed sem metadata.userId — assinatura não vinculada a nenhum usuário.',
+        { sessionId: session.id, customerEmail: session.customer_email }
+      );
     }
   }
 

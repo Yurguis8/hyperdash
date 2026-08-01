@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { createAdminClient } from '@/lib/supabase/admin';
 
 export async function POST(request: Request) {
   try {
@@ -17,12 +18,29 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Este e-mail já está cadastrado.' }, { status: 400 });
     }
 
-    // Cria o usuário no Supabase
+    const admin = createAdminClient();
+    const { data: authData, error: authError } = await admin.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: name ? { name } : undefined,
+    });
+
+    if (authError || !authData.user) {
+      const message =
+        authError?.message?.includes('already been registered') ||
+        authError?.message?.includes('already registered')
+          ? 'Este e-mail já está cadastrado.'
+          : authError?.message || 'Não foi possível criar a conta.';
+      return NextResponse.json({ error: message }, { status: 400 });
+    }
+
     const user = await prisma.user.create({
       data: {
+        id: authData.user.id,
         name,
         email,
-        // Em produção, recomendamos hash da senha com bcrypt
+        stripeSubscriptionStatus: 'pending',
       },
     });
 

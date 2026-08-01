@@ -14,10 +14,27 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
+      const registerRes = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, name, password }),
+      });
+
+      const registerData = await registerRes.json();
+
+      if (!registerRes.ok) {
+        alert(registerData.error || 'Erro ao criar conta.');
+        return;
+      }
+
       const res = await fetch('/api/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, name }),
+        body: JSON.stringify({
+          email,
+          name,
+          userId: registerData.user.id,
+        }),
       });
 
       const data = await res.json();
@@ -25,7 +42,7 @@ export default function RegisterPage() {
       if (data.url) {
         window.location.href = data.url;
       } else {
-        alert('Erro ao iniciar pagamento. Verifique a configuração.');
+        alert(data.error || 'Erro ao iniciar pagamento. Verifique a configuração.');
       }
     } catch (err) {
       console.error(err);
