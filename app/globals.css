@@ -12,3 +12,35 @@
 nextjs-portal {
   display: none !important;
 }
+
+@media print {
+  @page {
+    size: A4;
+    margin: 14mm;
+  }
+
+  body {
+    background: #ffffff !important;
+    color: #18181b !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .dashboard-no-print {
+    display: none !important;
+  }
+
+  .print-only {
+    display: block !important;
+  }
+
+  #dashboard-report {
+    max-width: 100% !important;
+    padding: 0 !important;
+  }
+
+  #dashboard-report .rounded-lg {
+    break-inside: avoid;
+    box-shadow: none !important;
+  }
+}
