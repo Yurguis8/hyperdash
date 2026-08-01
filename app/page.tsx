@@ -10,9 +10,6 @@ export default function LandingPage() {
       <nav className="fixed top-0 w-full z-50 bg-white/80 backdrop-blur-md border-b border-neutral-100">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 bg-neutral-900 rounded flex items-center justify-center text-white font-semibold text-xs">
-              M
-            </div>
             <span className="font-semibold text-sm tracking-tight text-neutral-900">
               HyperPanel
             </span>
