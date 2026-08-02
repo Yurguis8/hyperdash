@@ -37,9 +37,28 @@ export default function GraficosPage() {
     );
   }
 
-  const timeSeries = dashboard.timeSeries.length > 0
-    ? dashboard.timeSeries
-    : [{ label: '—', spend: 0, revenue: 0, clicks: 0, leads: 0, date: '' }];
+  if (dashboard.timeSeries.length === 0) {
+    return (
+      <div className="p-6 md:p-8 space-y-8 max-w-7xl mx-auto font-sans antialiased">
+        <div className="space-y-1">
+          <h1 className="text-3xl font-semibold tracking-tight text-neutral-900">Análise Visual</h1>
+          <p className="text-sm text-neutral-500">
+            Acompanhe a performance e eficiência das campanhas do Meta Ads graficamente.
+          </p>
+        </div>
+        <div className="bg-white border border-neutral-200 rounded-xl min-h-72 flex items-center justify-center px-6 text-center shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
+          <div>
+            <h2 className="text-base font-semibold text-neutral-900">Nenhum dado no período</h2>
+            <p className="text-sm text-neutral-500 mt-2">
+              A API da Meta não retornou uma série temporal para o período selecionado.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const timeSeries = dashboard.timeSeries;
 
   // Calcular métricas diárias adicionais para evolução de custos (arredondado para 2 casas)
   const costTrendData = timeSeries.map((point) => {
