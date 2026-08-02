@@ -18,6 +18,16 @@ function getRoasStyle(roas: number) {
   return ROAS_COLORS.critico;
 }
 
+function parsePtBrNumber(value: string): number {
+  const normalized = value
+    .replace(/\s/g, '')
+    .replace(/[^0-9,.-]/g, '')
+    .replace(/\.(?=\d{3}(?:\D|$))/g, '')
+    .replace(',', '.');
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
 function applyCardBorder(ws: ExcelJS.Worksheet, startCol: number, endCol: number, startRow: number, endRow: number) {
   for (let r = startRow; r <= endRow; r++) {
     for (let c = startCol; c <= endCol; c++) {
@@ -405,12 +415,10 @@ export async function exportDashboardToExcel(
     ws.getCell(channelRowIndex, 5).value = ch.leadsRaw;
     ws.getCell(channelRowIndex, 6).value = ch.conversionsRaw;
 
-    // CPC
-    const spendVal = ch.spendRaw;
-    ws.getCell(channelRowIndex, 7).value = ch.spendRaw / (ch.leadsRaw || 1) * 0.15; // CPC aproximado
-    ws.getCell(channelRowIndex, 8).value = ch.leadsRaw > 0 ? ch.spendRaw / ch.leadsRaw : 0;
-    ws.getCell(channelRowIndex, 9).value = 0.024; // CTR fixado aprox
-    ws.getCell(channelRowIndex, 10).value = ch.leadsRaw > 0 ? (ch.conversionsRaw / ch.leadsRaw) : 0;
+    ws.getCell(channelRowIndex, 7).value = parsePtBrNumber(ch.cpc);
+    ws.getCell(channelRowIndex, 8).value = parsePtBrNumber(ch.cpl);
+    ws.getCell(channelRowIndex, 9).value = parsePtBrNumber(ch.ctr) / 100;
+    ws.getCell(channelRowIndex, 10).value = parsePtBrNumber(ch.leadConversionRate) / 100;
 
     // Formatação de Células
     ws.getCell(channelRowIndex, 1).font = { name: 'Arial', size: 9, bold: true };
@@ -667,7 +675,7 @@ export async function exportToExcel(
   worksheet.getRow(1).height = 24;
   worksheet.getRow(1).font = { name: 'Arial', size: 10, bold: true, color: { argb: 'FFFFFF' } };
   worksheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '0F172A' } }; // Slate 900
-  data.forEach((item, index) => {
+  data.forEach((item) => {
     const row = worksheet.addRow(item);
     row.height = 20;
     row.eachCell((cell) => {

@@ -18,8 +18,6 @@ interface SpendRevenueChartProps {
 }
 
 export function SpendRevenueChart({ data, periodLabel }: SpendRevenueChartProps) {
-  const chartData = data.length > 0 ? data : [{ label: '—', spend: 0, revenue: 0, date: '' }];
-
   return (
     <div id="spend-revenue-chart-container" className="bg-white border border-neutral-200 rounded-lg p-6 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
       <div className="mb-8">
@@ -28,9 +26,14 @@ export function SpendRevenueChart({ data, periodLabel }: SpendRevenueChartProps)
         </h2>
         <p className="text-sm text-neutral-500 mt-1">{periodLabel}</p>
       </div>
+      {data.length === 0 ? (
+        <div className="h-72 w-full print:h-52 flex items-center justify-center rounded-md border border-dashed border-neutral-200 bg-neutral-50/50 px-6 text-center">
+          <p className="text-sm text-neutral-500">Nenhum dado de investimento ou receita retornado para este período.</p>
+        </div>
+      ) : (
       <div className="h-72 w-full print:h-52">
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+          <LineChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
             <CartesianGrid stroke="#F4F4F5" vertical={false} />
             <XAxis
               dataKey="label"
@@ -96,6 +99,7 @@ export function SpendRevenueChart({ data, periodLabel }: SpendRevenueChartProps)
           </LineChart>
         </ResponsiveContainer>
       </div>
+      )}
     </div>
   );
 }
