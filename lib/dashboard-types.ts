@@ -125,11 +125,11 @@ export function computeProjection(
   investimento: number,
   payload: DashboardPayload
 ): ProjectionResult {
-  const baseSpend = payload.metrics.spend.raw ?? 1;
-  const roas = payload.roasNumeric || payload.metrics.roas.raw || 1;
+  const baseSpend = payload.metrics.spend.raw ?? 0;
+  const roas = payload.roasNumeric ?? payload.metrics.roas.raw ?? 0;
   const leads = payload.metrics.leads.raw ?? 0;
   const conversions = payload.metrics.conversions.raw ?? 0;
-  const factor = investimento / baseSpend;
+  const factor = baseSpend > 0 ? investimento / baseSpend : 0;
 
   const leadsEstimados = Math.round(leads * factor);
   const conversoesEstimadas = Math.round(conversions * factor);
