@@ -9,18 +9,9 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
+import type { TimeSeriesPoint } from '@/lib/dashboard-types';
 
-const mockData = [
-  { date: '01/08', spend: 120, conversions: 12 },
-  { date: '02/08', spend: 180, conversions: 19 },
-  { date: '03/08', spend: 150, conversions: 15 },
-  { date: '04/08', spend: 260, conversions: 28 },
-  { date: '05/08', spend: 210, conversions: 22 },
-  { date: '06/08', spend: 310, conversions: 35 },
-  { date: '07/08', spend: 290, conversions: 31 },
-];
-
-export function MetricsChart() {
+export function MetricsChart({ data }: { data: TimeSeriesPoint[] }) {
   return (
     <div className="bg-white/80 dark:bg-[#1C1C1E]/80 backdrop-blur-xl border border-black/5 dark:border-white/10 rounded-2xl p-6 shadow-sm">
       <div className="flex items-center justify-between mb-6">
@@ -29,9 +20,14 @@ export function MetricsChart() {
           <p className="text-xs text-slate-500 dark:text-slate-400">Gasto x Conversões nos últimos 7 dias</p>
         </div>
       </div>
+      {data.length === 0 ? (
+        <div className="h-72 w-full flex items-center justify-center rounded-xl border border-dashed border-black/5 dark:border-white/10 px-6 text-center">
+          <p className="text-sm text-slate-500 dark:text-slate-400">Nenhuma métrica retornada para este período.</p>
+        </div>
+      ) : (
       <div className="h-72 w-full">
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={mockData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+          <AreaChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
             <defs>
               <linearGradient id="spendGradient" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%" stopColor="#0071E3" stopOpacity={0.3} />
@@ -61,6 +57,7 @@ export function MetricsChart() {
           </AreaChart>
         </ResponsiveContainer>
       </div>
+      )}
     </div>
   );
 }
