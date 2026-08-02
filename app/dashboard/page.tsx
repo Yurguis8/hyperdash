@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Download, AlertCircle, FileText, ChevronDown, CheckCircle2, TrendingUp, Award, Users } from 'lucide-react';
+import { AlertCircle, ChevronDown, Download, FileText, RefreshCw } from 'lucide-react';
 import { exportDashboardToExcel } from '@/lib/export';
 import type { PeriodKey } from '@/lib/dashboard-types';
 import { PERIOD_OPTIONS } from '@/lib/dashboard-types';
@@ -28,7 +28,7 @@ function getRoasStatusLabel(roas: number) {
 }
 
 function DashboardContent() {
-  const { period, setPeriod, dashboard, loading, isConnected, useDemo, setUseDemo } = useDashboard();
+  const { period, setPeriod, dashboard, loading, loadError, isConnected, reload } = useDashboard();
 
   const handleExportExcel = async () => {
     if (!dashboard) return;
@@ -58,7 +58,7 @@ function DashboardContent() {
   };
 
   const metrics = dashboard?.metrics;
-  const canExport = !!dashboard && (isConnected || dashboard.timeSeries.length > 0 || dashboard.isDemoData);
+  const canExport = !!dashboard && isConnected;
 
   // Calcula Receita Atribuída baseada no spend e roas
   const spendRaw = metrics?.spend?.raw ?? 0;
@@ -113,30 +113,15 @@ function DashboardContent() {
               </select>
               <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
             </div>
-            <div className="flex items-center bg-white border border-neutral-200 rounded-md p-1">
-              <button
-                type="button"
-                onClick={() => setUseDemo(false)}
-                className={`px-3 py-1.5 text-xs font-semibold rounded transition-colors ${
-                  !useDemo
-                    ? 'bg-neutral-900 text-white shadow-sm'
-                    : 'text-neutral-600 hover:text-neutral-900'
-                }`}
-              >
-                🟢 Dados Reais
-              </button>
-              <button
-                type="button"
-                onClick={() => setUseDemo(true)}
-                className={`px-3 py-1.5 text-xs font-semibold rounded transition-colors ${
-                  useDemo
-                    ? 'bg-neutral-900 text-white shadow-sm'
-                    : 'text-neutral-600 hover:text-neutral-900'
-                }`}
-              >
-                🧪 Dados de Teste
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={reload}
+              disabled={loading || !isConnected}
+              className="inline-flex items-center justify-center gap-2 px-3 py-2 text-xs font-semibold rounded-md bg-neutral-900 text-white hover:bg-neutral-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+              Exibir dados reais
+            </button>
 
             <div className="flex gap-2">
               <button
@@ -161,21 +146,31 @@ function DashboardContent() {
           </div>
         </div>
 
-        {/* Alerta de fallback */}
-        {!isConnected && dashboard?.isDemoData && (
+        {loadError && (
           <div className="dashboard-no-print p-4 rounded-lg bg-white border border-neutral-200 flex items-start gap-3 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
             <AlertCircle className="w-5 h-5 text-zinc-400 mt-0.5 shrink-0" />
             <div className="text-sm text-neutral-600">
-              <p className="font-semibold text-neutral-900">Integração pendente com Meta Ads</p>
-              <p className="mt-1">
-                Sua conta de anúncios não está vinculada ou não retornou dados. Exibindo dados de teste abaixo para demonstração.
-              </p>
+              <p className="font-semibold text-neutral-900">Dados reais indisponíveis</p>
+              <p className="mt-1">{loadError}</p>
             </div>
           </div>
         )}
 
         {loading && !dashboard ? (
           <div className="py-20 text-center text-sm text-neutral-500">Carregando painel…</div>
+        ) : !isConnected ? (
+          <div className="dashboard-no-print bg-white border border-neutral-200 rounded-xl px-6 py-12 text-center shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+            <h2 className="text-lg font-semibold text-neutral-900">Conecte sua conta da Meta</h2>
+            <p className="mt-2 text-sm text-neutral-500 max-w-lg mx-auto">
+              Vincule uma conta para carregar exclusivamente as métricas reais retornadas pela API da Meta.
+            </p>
+            <a
+              href="/api/auth/meta/login"
+              className="mt-5 inline-flex items-center justify-center px-4 py-2.5 rounded-md bg-neutral-900 text-white text-sm font-medium hover:bg-neutral-800 transition-colors"
+            >
+              Conectar Meta
+            </a>
+          </div>
         ) : dashboard && metrics ? (
           <>
             {/* Bloco de Diagnóstico */}
