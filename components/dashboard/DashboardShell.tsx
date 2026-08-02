@@ -7,7 +7,7 @@ import {
   LineChart,
   TrendingUp,
   LogOut,
-  AlertCircle,
+  Unlink,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useDashboard } from './DashboardProvider';
@@ -21,15 +21,13 @@ const NAV = [
 export function DashboardShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { isConnected, dashboard } = useDashboard();
+  const { isConnected, dashboard, disconnectMeta } = useDashboard();
 
   const handleLogout = async () => {
     const supabase = createClient();
     await supabase.auth.signOut();
     router.push('/login');
   };
-
-  const connectedQuery = isConnected ? '?meta=connected' : '';
 
   return (
     <div className="min-h-screen bg-[#F5F5F5] text-neutral-900 flex">
@@ -46,7 +44,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
             return (
               <Link
                 key={href}
-                href={`${href}${connectedQuery}`}
+                href={href}
                 className={`flex items-center gap-2.5 px-3 py-2.5 rounded-md text-sm font-medium transition-colors ${
                   active
                     ? 'bg-neutral-900 text-white'
@@ -62,10 +60,20 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
 
         <div className="p-4 border-t border-neutral-100 space-y-3">
           {isConnected ? (
-            <p className="text-xs text-neutral-500 flex items-center gap-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-              Meta Ads conectado
-            </p>
+            <div className="space-y-2">
+              <p className="text-xs text-neutral-500 flex items-center gap-2 min-w-0">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                <span className="truncate">{dashboard?.accountName || 'Meta Ads conectado'}</span>
+              </p>
+              <button
+                type="button"
+                onClick={disconnectMeta}
+                className="w-full inline-flex items-center justify-center gap-2 text-xs font-medium py-2 rounded-md border border-neutral-200 text-neutral-700 hover:bg-neutral-50 hover:border-neutral-300 transition-colors"
+              >
+                <Unlink className="w-3.5 h-3.5" />
+                Desconectar da Meta
+              </button>
+            </div>
           ) : (
             <a
               href="/api/auth/meta/login"
@@ -94,7 +102,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
               return (
                 <Link
                   key={href}
-                  href={`${href}${connectedQuery}`}
+                  href={href}
                   className={`text-xs px-2 py-1 rounded-md ${active ? 'bg-neutral-900 text-white' : 'text-neutral-600'}`}
                 >
                   {label}
@@ -104,16 +112,31 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
           </div>
         </header>
 
-        {dashboard?.isDemoData && (
-          <div className="dashboard-no-print mx-4 mt-4 md:mx-8 md:mt-6 p-3 rounded-lg bg-amber-50 border border-amber-200/80 flex gap-2 text-sm text-amber-950">
-            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-            <p>
-              Exibindo <strong>dados de teste</strong> — a API não retornou métricas válidas ou a conta está
-              vazia. Edite <code className="text-xs bg-white/80 px-1 rounded">lib/demo-fixtures.ts</code> ou
-              desative com <code className="text-xs bg-white/80 px-1 rounded">NEXT_PUBLIC_DEMO_FALLBACK=false</code>.
-            </p>
+        <div className="dashboard-no-print md:hidden px-4 py-2.5 border-b border-neutral-200 bg-white">
+          {isConnected ? (
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-xs text-neutral-500 flex items-center gap-2 min-w-0">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                <span className="truncate">{dashboard?.accountName || 'Meta Ads conectado'}</span>
+              </p>
+              <button
+                type="button"
+                onClick={disconnectMeta}
+                className="shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-neutral-200 text-xs font-medium text-neutral-700 hover:bg-neutral-50 transition-colors"
+              >
+                <Unlink className="w-3.5 h-3.5" />
+                Desconectar da Meta
+              </button>
+            </div>
+          ) : (
+            <a
+              href="/api/auth/meta/login"
+              className="block w-full text-center text-xs font-medium py-2 rounded-md bg-neutral-900 text-white hover:bg-neutral-800 transition-colors"
+            >
+              Conectar Meta
+            </a>
+          )}
           </div>
-        )}
 
         <div className="flex-1">{children}</div>
       </div>

@@ -31,7 +31,7 @@ export function DashboardToolbar({ title, subtitle }: { title: string; subtitle:
     exportDashboardToExcel(dashboard, `hyperpanel-${dashboard.period}-${date}.xlsx`, chartBase64);
   };
 
-  const canExport = !!dashboard && (dashboard.timeSeries.length > 0 || dashboard.isDemoData);
+  const canExport = !!dashboard && dashboard.connected;
 
   return (
     <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-5 mb-8">
