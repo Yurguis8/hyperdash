@@ -1,4 +1,6 @@
 import type {
+  CampaignRow,
+  ChannelRow,
   DashboardMetrics,
   DashboardPayload,
   MetricTrend,
@@ -7,6 +9,10 @@ import type {
   TopAdRow,
 } from './dashboard-types';
 import { getRoasHealth, PERIOD_OPTIONS } from './dashboard-types';
+import {
+  buildDemoDashboardPayload,
+  withDemoFallback,
+} from './demo-fixtures';
 
 const PRESET: Record<PeriodKey, string> = {
   today: 'today',
@@ -19,6 +25,13 @@ function parseRoas(row: Record<string, unknown>): number {
   const purchaseRoas = row.purchase_roas as { value?: string }[] | undefined;
   if (purchaseRoas?.[0]?.value) return parseFloat(purchaseRoas[0].value);
   return 0;
+}
+
+function parseActionCount(row: Record<string, unknown>, types: string[]): number {
+  const actions = row.actions as { action_type?: string; value?: string }[] | undefined;
+  if (!actions) return 0;
+  const match = actions.find((a) => a.action_type && types.includes(a.action_type));
+  return match?.value ? parseInt(match.value, 10) : 0;
 }
 
 function parseRevenue(row: Record<string, unknown>): number {
@@ -46,25 +59,17 @@ function formatPercent(value: number): string {
 }
 
 function formatRoas(value: number): string {
-  return `${value.toFixed(1).replace('.', ',')}x`;
+  return `${value.toFixed(2).replace('.', ',')}x`;
 }
 
-function trend(current: number, previous: number, invert = false): MetricTrend {
+function trend(current: number, previous: number, invert = false): Omit<MetricTrend, 'value'> & { raw: number } {
   let changePercent: number | null = null;
-  if (previous > 0) {
-    changePercent = ((current - previous) / previous) * 100;
-  } else if (current > 0) {
-    changePercent = 100;
-  }
+  if (previous > 0) changePercent = ((current - previous) / previous) * 100;
+  else if (current > 0) changePercent = 100;
   const isPositive = invert
     ? changePercent !== null && changePercent <= 0
     : changePercent !== null && changePercent >= 0;
-
-  return {
-    value: '',
-    changePercent,
-    isPositive,
-  };
+  return { raw: current, changePercent, isPositive };
 }
 
 function buildMetrics(
@@ -72,58 +77,59 @@ function buildMetrics(
   previous: Record<string, number>
 ): DashboardMetrics {
   const spendT = trend(current.spend, previous.spend);
-  spendT.value = formatCurrency(current.spend);
   const impT = trend(current.impressions, previous.impressions);
-  impT.value = formatNumber(current.impressions);
   const clicksT = trend(current.clicks, previous.clicks);
-  clicksT.value = formatNumber(current.clicks);
   const ctrT = trend(current.ctr, previous.ctr);
-  ctrT.value = formatPercent(current.ctr);
   const cpcT = trend(current.cpc, previous.cpc, true);
-  cpcT.value = formatCurrency(current.cpc);
   const cpmT = trend(current.cpm, previous.cpm, true);
-  cpmT.value = formatCurrency(current.cpm);
   const reachT = trend(current.reach, previous.reach);
-  reachT.value = formatNumber(current.reach);
   const roasT = trend(current.roas, previous.roas);
-  roasT.value = formatRoas(current.roas);
+  const leadsT = trend(current.leads, previous.leads);
+  const convT = trend(current.conversions, previous.conversions);
+  const cplT = trend(current.cpl, previous.cpl, true);
+  const leadConvT = trend(current.leadConversionRate, previous.leadConversionRate);
 
   return {
-    spend: spendT,
-    impressions: impT,
-    clicks: clicksT,
-    ctr: ctrT,
-    cpc: cpcT,
-    cpm: cpmT,
-    reach: reachT,
-    roas: roasT,
-  };
-}
-
-function emptyMetrics(): DashboardMetrics {
-  const zero = (v: string): MetricTrend => ({ value: v, changePercent: null, isPositive: true });
-  return {
-    spend: zero('R$ 0,00'),
-    impressions: zero('0'),
-    clicks: zero('0'),
-    ctr: zero('0,00%'),
-    cpc: zero('R$ 0,00'),
-    cpm: zero('R$ 0,00'),
-    reach: zero('0'),
-    roas: zero('0,0x'),
+    spend: { ...spendT, value: formatCurrency(current.spend) },
+    impressions: { ...impT, value: formatNumber(current.impressions) },
+    clicks: { ...clicksT, value: formatNumber(current.clicks) },
+    ctr: { ...ctrT, value: formatPercent(current.ctr) },
+    cpc: { ...cpcT, value: formatCurrency(current.cpc) },
+    cpm: { ...cpmT, value: formatCurrency(current.cpm) },
+    reach: { ...reachT, value: formatNumber(current.reach) },
+    roas: { ...roasT, value: formatRoas(current.roas) },
+    leads: { ...leadsT, value: formatNumber(current.leads) },
+    conversions: { ...convT, value: formatNumber(current.conversions) },
+    cpl: { ...cplT, value: formatCurrency(current.cpl) },
+    leadConversionRate: { ...leadConvT, value: formatPercent(current.leadConversionRate) },
   };
 }
 
 function rowToNumbers(row: Record<string, unknown>) {
+  const spend = parseFloat(String(row.spend ?? 0));
+  const clicks = parseInt(String(row.clicks ?? 0), 10);
+  const leads = parseActionCount(row, ['lead', 'onsite_conversion.lead_grouped', 'offsite_conversion.fb_pixel_lead']);
+  const conversions = parseActionCount(row, [
+    'offsite_conversion.fb_pixel_purchase',
+    'purchase',
+    'omni_purchase',
+  ]);
+  const roas = parseRoas(row);
+  const leadConversionRate = leads > 0 ? (conversions / leads) * 100 : 0;
+
   return {
-    spend: parseFloat(String(row.spend ?? 0)),
+    spend,
     impressions: parseInt(String(row.impressions ?? 0), 10),
-    clicks: parseInt(String(row.clicks ?? 0), 10),
+    clicks,
     ctr: parseFloat(String(row.ctr ?? 0)),
     cpc: parseFloat(String(row.cpc ?? 0)),
     cpm: parseFloat(String(row.cpm ?? 0)),
     reach: parseInt(String(row.reach ?? 0), 10),
-    roas: parseRoas(row),
+    roas,
+    leads,
+    conversions,
+    cpl: leads > 0 ? spend / leads : 0,
+    leadConversionRate,
   };
 }
 
@@ -135,7 +141,6 @@ async function graphFetch(url: string) {
 function getPreviousTimeRange(period: PeriodKey): { since: string; until: string } | null {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-
   const fmt = (d: Date) => d.toISOString().slice(0, 10);
 
   if (period === 'today') {
@@ -146,8 +151,7 @@ function getPreviousTimeRange(period: PeriodKey): { since: string; until: string
   if (period === 'yesterday') {
     const end = new Date(today);
     end.setDate(end.getDate() - 2);
-    const start = new Date(end);
-    return { since: fmt(start), until: fmt(end) };
+    return { since: fmt(end), until: fmt(end) };
   }
   if (period === 'last_7d') {
     const until = new Date(today);
@@ -166,91 +170,50 @@ function getPreviousTimeRange(period: PeriodKey): { since: string; until: string
   return null;
 }
 
-function demoPayload(period: PeriodKey, connected: boolean): DashboardPayload {
-  const periodLabel = PERIOD_OPTIONS.find((p) => p.value === period)?.label ?? period;
-  const baseRoas = period === 'today' ? 2.4 : period === 'yesterday' ? 1.5 : period === 'last_7d' ? 1.8 : 2.1;
-  const spend = period === 'today' ? 420 : period === 'yesterday' ? 380 : period === 'last_7d' ? 2840 : 11200;
-  const revenue = spend * baseRoas;
+function buildFunnelFromNumbers(n: ReturnType<typeof rowToNumbers>) {
+  const clickToLead = n.clicks > 0 ? (n.leads / n.clicks) * 100 : 0;
+  return [
+    { label: 'Impressões → Cliques', rate: n.ctr, display: formatPercent(n.ctr) },
+    { label: 'Cliques → Leads', rate: clickToLead, display: formatPercent(clickToLead) },
+    { label: 'Leads → Conversões', rate: n.leadConversionRate, display: formatPercent(n.leadConversionRate) },
+  ];
+}
 
-  const days = period === 'today' || period === 'yesterday' ? 1 : period === 'last_7d' ? 7 : 30;
-  const timeSeries: TimeSeriesPoint[] = [];
-  for (let i = days - 1; i >= 0; i--) {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
-    const daySpend = spend / days + (i % 3) * 12;
-    timeSeries.push({
-      date: d.toISOString().slice(0, 10),
-      label: d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }),
-      spend: Math.round(daySpend * 100) / 100,
-      revenue: Math.round(daySpend * baseRoas * 100) / 100,
-    });
-  }
+function defaultChannelFromTotals(n: ReturnType<typeof rowToNumbers>): ChannelRow[] {
+  const revenue = n.spend * n.roas;
+  return [
+    {
+      name: 'Meta Ads',
+      spend: formatCurrency(n.spend),
+      spendRaw: n.spend,
+      revenue: formatCurrency(revenue),
+      revenueRaw: revenue,
+      roas: formatRoas(n.roas),
+      roasRaw: n.roas,
+      leads: formatNumber(n.leads),
+      leadsRaw: n.leads,
+      conversions: formatNumber(n.conversions),
+      conversionsRaw: n.conversions,
+      cpc: formatCurrency(n.cpc),
+      cpl: formatCurrency(n.cpl),
+      ctr: formatPercent(n.ctr),
+      leadConversionRate: formatPercent(n.leadConversionRate),
+    },
+  ];
+}
 
-  const metrics = buildMetrics(
-    {
-      spend,
-      impressions: spend * 42,
-      clicks: spend * 0.9,
-      ctr: 2.14,
-      cpc: spend / (spend * 0.9),
-      cpm: 18.4,
-      reach: spend * 28,
-      roas: baseRoas,
-    },
-    {
-      spend: spend * 0.88,
-      impressions: spend * 42 * 0.91,
-      clicks: spend * 0.9 * 0.93,
-      ctr: 2.01,
-      cpc: (spend * 0.88) / (spend * 0.9 * 0.93),
-      cpm: 19.1,
-      reach: spend * 28 * 0.9,
-      roas: baseRoas * 0.92,
-    }
-  );
-
-  const topAds: TopAdRow[] = [
-    {
-      name: 'Vídeo — Remarketing Carrinho',
-      spend: formatCurrency(spend * 0.34),
-      spendRaw: spend * 0.34,
-      cpc: formatCurrency(1.12),
-      cpcRaw: 1.12,
-      roas: formatRoas(baseRoas + 0.6),
-      roasRaw: baseRoas + 0.6,
-    },
-    {
-      name: 'Estático — Prova Social',
-      spend: formatCurrency(spend * 0.28),
-      spendRaw: spend * 0.28,
-      cpc: formatCurrency(0.89),
-      cpcRaw: 0.89,
-      roas: formatRoas(baseRoas + 0.2),
-      roasRaw: baseRoas + 0.2,
-    },
-    {
-      name: 'Carrossel — Lançamento',
-      spend: formatCurrency(spend * 0.22),
-      spendRaw: spend * 0.22,
-      cpc: formatCurrency(1.45),
-      cpcRaw: 1.45,
-      roas: formatRoas(baseRoas - 0.3),
-      roasRaw: baseRoas - 0.3,
-    },
-  ].sort((a, b) => b.roasRaw - a.roasRaw);
-
-  return {
-    connected,
-    period,
-    periodLabel,
-    roasHealth: getRoasHealth(baseRoas),
-    roasNumeric: baseRoas,
-    metrics,
-    timeSeries,
-    topAds,
-    generatedAt: new Date().toISOString(),
-    accountName: connected ? 'Conta Meta Ads' : undefined,
-  };
+function campaignRowsFromAds(ads: TopAdRow[]): CampaignRow[] {
+  return ads.map((ad) => ({
+    name: ad.name,
+    spend: ad.spend,
+    spendRaw: ad.spendRaw,
+    revenue: formatCurrency(ad.spendRaw * ad.roasRaw),
+    revenueRaw: ad.spendRaw * ad.roasRaw,
+    roas: ad.roas,
+    roasRaw: ad.roasRaw,
+    leads: '—',
+    leadsRaw: 0,
+  }));
 }
 
 export async function fetchDashboardPayload(
@@ -260,55 +223,65 @@ export async function fetchDashboardPayload(
   accountName?: string
 ): Promise<DashboardPayload> {
   const preset = PRESET[period];
-  const fields = 'spend,impressions,clicks,ctr,cpc,cpm,reach,purchase_roas,action_values';
+  const fields =
+    'spend,impressions,clicks,ctr,cpc,cpm,reach,purchase_roas,action_values,actions';
   const base = `https://graph.facebook.com/v19.0/${adAccountId}/insights`;
 
   const currentUrl = `${base}?fields=${fields}&date_preset=${preset}&access_token=${accessToken}`;
   const currentResult = await graphFetch(currentUrl);
-
-  if (currentResult.error) {
-    throw new Error(currentResult.error.message);
-  }
+  if (currentResult.error) throw new Error(currentResult.error.message);
 
   const currentRow = (currentResult.data?.[0] ?? {}) as Record<string, unknown>;
   const current = rowToNumbers(currentRow);
 
-  let previous = { ...current, spend: 0, impressions: 0, clicks: 0, reach: 0, roas: 0 };
+  let previous = { ...current, spend: 0, impressions: 0, clicks: 0, reach: 0, roas: 0, leads: 0, conversions: 0 };
   const prevRange = getPreviousTimeRange(period);
   if (prevRange) {
     const prevUrl = `${base}?fields=${fields}&time_range=${encodeURIComponent(JSON.stringify(prevRange))}&access_token=${accessToken}`;
     const prevResult = await graphFetch(prevUrl);
-    if (prevResult.data?.[0]) {
-      previous = rowToNumbers(prevResult.data[0] as Record<string, unknown>);
-    }
+    if (prevResult.data?.[0]) previous = rowToNumbers(prevResult.data[0] as Record<string, unknown>);
   }
 
   const seriesPreset = period === 'today' || period === 'yesterday' ? 'last_7d' : preset;
-  const seriesUrl = `${base}?fields=spend,action_values&date_preset=${seriesPreset}&time_increment=1&access_token=${accessToken}`;
+  const seriesUrl = `${base}?fields=spend,clicks,action_values,actions&date_preset=${seriesPreset}&time_increment=1&access_token=${accessToken}`;
   const seriesResult = await graphFetch(seriesUrl);
   let timeSeries: TimeSeriesPoint[] = (seriesResult.data ?? []).map((row: Record<string, unknown>) => {
     const dateStr = String(row.date_start ?? '');
-    const d = new Date(dateStr + 'T12:00:00');
+    const d = new Date(`${dateStr}T12:00:00`);
     return {
       date: dateStr,
       label: d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }),
       spend: parseFloat(String(row.spend ?? 0)),
       revenue: parseRevenue(row),
+      leads: parseActionCount(row, ['lead', 'onsite_conversion.lead_grouped', 'offsite_conversion.fb_pixel_lead']),
+      clicks: parseInt(String(row.clicks ?? 0), 10),
     };
   });
 
   if (period === 'today' || period === 'yesterday') {
-    const slice = period === 'today' ? -1 : -2;
-    timeSeries = timeSeries.slice(slice);
+    timeSeries = timeSeries.slice(period === 'today' ? -1 : -2);
   } else if (period === 'last_7d') {
     timeSeries = timeSeries.slice(-7);
   } else {
     timeSeries = timeSeries.slice(-30);
   }
 
+  const monthlyUrl = `${base}?fields=spend,action_values&date_preset=last_90d&time_increment=monthly&access_token=${accessToken}`;
+  const monthlyResult = await graphFetch(monthlyUrl);
+  const monthlySeries: TimeSeriesPoint[] = (monthlyResult.data ?? []).map((row: Record<string, unknown>) => {
+    const dateStr = String(row.date_start ?? '');
+    const d = new Date(`${dateStr}T12:00:00`);
+    return {
+      date: dateStr,
+      label: d.toLocaleDateString('pt-BR', { month: 'short' }),
+      spend: parseFloat(String(row.spend ?? 0)),
+      revenue: parseRevenue(row),
+    };
+  });
+
   const topAdsUrl = `${base}?level=ad&fields=ad_name,spend,cpc,purchase_roas&sort=purchase_roas_descending&limit=50&date_preset=${preset}&access_token=${accessToken}`;
   const topResult = await graphFetch(topAdsUrl);
-  let topAds: TopAdRow[] = (topResult.data ?? [])
+  const topAds: TopAdRow[] = (topResult.data ?? [])
     .map((row: Record<string, unknown>) => {
       const roasRaw = parseRoas(row);
       const spendRaw = parseFloat(String(row.spend ?? 0));
@@ -327,41 +300,78 @@ export async function fetchDashboardPayload(
     .sort((a: TopAdRow, b: TopAdRow) => b.roasRaw - a.roasRaw)
     .slice(0, 3);
 
-  if (topAds.length === 0) {
-    topAds = demoPayload(period, true).topAds;
-  }
-
   const periodLabel = PERIOD_OPTIONS.find((p) => p.value === period)?.label ?? period;
 
-  return {
+  const payload: DashboardPayload = {
     connected: true,
+    isDemoData: false,
     period,
     periodLabel,
     roasHealth: getRoasHealth(current.roas),
     roasNumeric: current.roas,
     metrics: buildMetrics(current, previous),
     timeSeries,
+    monthlySeries,
     topAds,
+    channels: defaultChannelFromTotals(current),
+    campaigns: campaignRowsFromAds(topAds),
+    funnel: buildFunnelFromNumbers(current),
     generatedAt: new Date().toISOString(),
     accountName,
   };
+
+  return withDemoFallback(payload, period, true);
 }
 
 export function getDemoDashboardPayload(period: PeriodKey, connected: boolean): DashboardPayload {
-  return demoPayload(period, connected);
+  return buildDemoDashboardPayload(period, connected, connected ? 'api_error' : 'preview');
 }
 
 export function getEmptyDashboardPayload(period: PeriodKey): DashboardPayload {
-  const periodLabel = PERIOD_OPTIONS.find((p) => p.value === period)?.label ?? period;
-  return {
+  const empty: DashboardPayload = {
     connected: false,
+    isDemoData: false,
     period,
-    periodLabel,
+    periodLabel: PERIOD_OPTIONS.find((p) => p.value === period)?.label ?? period,
     roasHealth: 'loss',
     roasNumeric: 0,
-    metrics: emptyMetrics(),
+    metrics: buildMetrics(
+      {
+        spend: 0,
+        impressions: 0,
+        clicks: 0,
+        ctr: 0,
+        cpc: 0,
+        cpm: 0,
+        reach: 0,
+        roas: 0,
+        leads: 0,
+        conversions: 0,
+        cpl: 0,
+        leadConversionRate: 0,
+      },
+      {
+        spend: 0,
+        impressions: 0,
+        clicks: 0,
+        ctr: 0,
+        cpc: 0,
+        cpm: 0,
+        reach: 0,
+        roas: 0,
+        leads: 0,
+        conversions: 0,
+        cpl: 0,
+        leadConversionRate: 0,
+      }
+    ),
     timeSeries: [],
+    monthlySeries: [],
     topAds: [],
+    channels: [],
+    campaigns: [],
+    funnel: [],
     generatedAt: new Date().toISOString(),
   };
+  return withDemoFallback(empty, period, false);
 }

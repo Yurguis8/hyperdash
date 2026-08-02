@@ -24,7 +24,7 @@ export async function POST(request: Request) {
           price_data: {
             currency: 'brl',
             product_data: {
-              name: 'MetaDash Pro - Assinatura Mensal',
+              name: 'HyperPanel Pro - Assinatura Mensal',
               description: 'Acesso completo ao painel de métricas e exportação de relatórios.',
             },
             unit_amount: 4700, // R$ 47,00 em centavos

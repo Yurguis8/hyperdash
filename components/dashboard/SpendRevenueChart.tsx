@@ -21,7 +21,7 @@ export function SpendRevenueChart({ data, periodLabel }: SpendRevenueChartProps)
   const chartData = data.length > 0 ? data : [{ label: '—', spend: 0, revenue: 0, date: '' }];
 
   return (
-    <div className="bg-white border border-neutral-200 rounded-lg p-6 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+    <div id="spend-revenue-chart-container" className="bg-white border border-neutral-200 rounded-lg p-6 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
       <div className="mb-8">
         <h2 className="text-base font-medium text-neutral-900 tracking-tight">
           Investimento vs. receita

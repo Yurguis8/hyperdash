@@ -4,6 +4,7 @@ export type RoasHealth = 'profitable' | 'attention' | 'loss';
 
 export interface MetricTrend {
   value: string;
+  raw?: number;
   changePercent: number | null;
   isPositive: boolean;
 }
@@ -17,6 +18,10 @@ export interface DashboardMetrics {
   cpm: MetricTrend;
   reach: MetricTrend;
   roas: MetricTrend;
+  leads: MetricTrend;
+  conversions: MetricTrend;
+  cpl: MetricTrend;
+  leadConversionRate: MetricTrend;
 }
 
 export interface TimeSeriesPoint {
@@ -24,6 +29,8 @@ export interface TimeSeriesPoint {
   label: string;
   spend: number;
   revenue: number;
+  leads?: number;
+  clicks?: number;
 }
 
 export interface TopAdRow {
@@ -36,15 +43,57 @@ export interface TopAdRow {
   roasRaw: number;
 }
 
+export interface ChannelRow {
+  name: string;
+  spend: string;
+  spendRaw: number;
+  revenue: string;
+  revenueRaw: number;
+  roas: string;
+  roasRaw: number;
+  leads: string;
+  leadsRaw: number;
+  conversions: string;
+  conversionsRaw: number;
+  cpc: string;
+  cpl: string;
+  ctr: string;
+  leadConversionRate: string;
+}
+
+export interface CampaignRow {
+  name: string;
+  spend: string;
+  spendRaw: number;
+  revenue: string;
+  revenueRaw: number;
+  roas: string;
+  roasRaw: number;
+  leads: string;
+  leadsRaw: number;
+}
+
+export interface FunnelStep {
+  label: string;
+  rate: number;
+  display: string;
+}
+
 export interface DashboardPayload {
   connected: boolean;
+  isDemoData?: boolean;
+  demoReason?: 'empty' | 'preview' | 'api_error';
   period: PeriodKey;
   periodLabel: string;
   roasHealth: RoasHealth;
   roasNumeric: number;
   metrics: DashboardMetrics;
   timeSeries: TimeSeriesPoint[];
+  monthlySeries: TimeSeriesPoint[];
   topAds: TopAdRow[];
+  channels: ChannelRow[];
+  campaigns: CampaignRow[];
+  funnel: FunnelStep[];
   generatedAt: string;
   accountName?: string;
   error?: string;
@@ -61,4 +110,37 @@ export function getRoasHealth(roas: number): RoasHealth {
   if (roas >= 2) return 'profitable';
   if (roas < 1) return 'loss';
   return 'attention';
+}
+
+export interface ProjectionResult {
+  investimento: number;
+  receitaEstimada: number;
+  roasEsperado: number;
+  leadsEstimados: number;
+  conversoesEstimadas: number;
+  cplEstimado: number;
+}
+
+export function computeProjection(
+  investimento: number,
+  payload: DashboardPayload
+): ProjectionResult {
+  const baseSpend = payload.metrics.spend.raw ?? 1;
+  const roas = payload.roasNumeric || payload.metrics.roas.raw || 1;
+  const leads = payload.metrics.leads.raw ?? 0;
+  const conversions = payload.metrics.conversions.raw ?? 0;
+  const factor = investimento / baseSpend;
+
+  const leadsEstimados = Math.round(leads * factor);
+  const conversoesEstimadas = Math.round(conversions * factor);
+  const receitaEstimada = investimento * roas;
+
+  return {
+    investimento,
+    receitaEstimada: receitaEstimada,
+    roasEsperado: roas,
+    leadsEstimados,
+    conversoesEstimadas,
+    cplEstimado: leadsEstimados > 0 ? investimento / leadsEstimados : 0,
+  };
 }

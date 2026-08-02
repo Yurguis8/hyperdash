@@ -39,7 +39,7 @@ export default function LoginPage() {
       <div className="w-full max-w-[400px]">
         <div className="mb-8 text-center">
           <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">
-            Entrar no MetaDash
+            Entrar no HyperPanel
           </h1>
           <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
             Insira seus dados para acessar o painel

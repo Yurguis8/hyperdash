@@ -57,7 +57,7 @@ export async function GET(request: Request) {
     if (!user) {
       user = await prisma.user.create({
         data: {
-          email: 'usuario.demo@metadash.com',
+          email: 'usuario.demo@hyperpanel.com',
           name: 'Usuário Demo',
         },
       });
