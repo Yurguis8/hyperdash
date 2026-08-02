@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useDashboard } from '@/components/dashboard/DashboardProvider';
-import { computeProjection } from '@/lib/dashboard-types';
+import { computeProjection, type PeriodKey } from '@/lib/dashboard-types';
 import {
   ResponsiveContainer,
   AreaChart,
@@ -23,22 +23,24 @@ const PERIODS = [
   { value: 365, label: '1 Ano (365 dias)' },
 ];
 
+function getHistoricalDays(period: PeriodKey) {
+  if (period === 'today' || period === 'yesterday') return 1;
+  if (period === 'last_7d') return 7;
+  return 30;
+}
+
 export default function ProjecoesPage() {
   const { dashboard, loading, period: histPeriod } = useDashboard();
   const [projDays, setProjDays] = useState<number>(30);
   const [investimentoDesejado, setInvestimentoDesejado] = useState<number>(10000);
 
-  const getHistDays = () => {
-    if (histPeriod === 'today' || histPeriod === 'yesterday') return 1;
-    if (histPeriod === 'last_7d') return 7;
-    return 30;
-  };
-
   useEffect(() => {
     if (dashboard?.metrics?.spend?.raw) {
       const baseSpend = dashboard.metrics.spend.raw;
-      const histDays = getHistDays();
+      const histDays = getHistoricalDays(histPeriod);
       const scaledSpend = (baseSpend / histDays) * projDays;
+      // Sincroniza o campo editável quando o histórico real ou o horizonte muda.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setInvestimentoDesejado(Math.round(scaledSpend));
     }
   }, [dashboard, projDays, histPeriod]);
@@ -65,7 +67,7 @@ export default function ProjecoesPage() {
       <div className="p-8 text-center text-sm text-neutral-500 font-sans max-w-xl mx-auto space-y-4">
         <h2 className="text-lg font-medium text-neutral-950">Sem dados históricos de investimento</h2>
         <p className="text-neutral-500">
-          Para estimar resultados futuros, conecte sua conta do Meta Ads ou utilize o modo de demonstração.
+          A API da Meta não retornou investimento no período selecionado. As projeções permanecem vazias até que existam dados reais.
         </p>
       </div>
     );
@@ -152,8 +154,8 @@ export default function ProjecoesPage() {
           <div className="pt-2">
             <input
               type="range"
-              min={Math.round((baseSpend / getHistDays()) * projDays * 0.2)}
-              max={Math.round((baseSpend / getHistDays()) * projDays * 4)}
+              min={Math.round((baseSpend / getHistoricalDays(histPeriod)) * projDays * 0.2)}
+              max={Math.round((baseSpend / getHistoricalDays(histPeriod)) * projDays * 4)}
               step={100}
               value={investimentoDesejado}
               onChange={(e) => setInvestimentoDesejado(Number(e.target.value))}
